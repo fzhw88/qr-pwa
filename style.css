@@ -47,7 +47,7 @@ hr {
     margin: 30px 0;
 }
 
-/* --- 扫描区 (V3 修复) --- */
+/* --- 扫描区 (V4 修复) --- */
 #scanner-container {
     width: 100%;
     overflow: hidden;
@@ -66,19 +66,31 @@ hr {
     height: 100%;
 }
 
-/* 强制内部 video 填充满容器, 消除黑边 */
+/* * 🚀 V4 UI 核心修复 🚀
+ * 强制 html5-qrcode 库创建的 *所有* 内部元素
+ * 都 100% 填满父容器。
+ * 这解决了 V3 中 video 元素被父 div 限制的问题。
+*/
+#qr-reader > div {
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+}
+
+/* 强制 video 元素使用 'cover' 模式 (放大并裁剪) */
 #qr-reader video {
     width: 100% !important;
     height: 100% !important;
     object-fit: cover !important; /* 关键：裁剪以适应，而不是留黑边 */
-    z-index: 1; /* 确保 video 在扫描框(z-index: 10) 之后 */
+    z-index: 1; 
 }
 
 /* 库的内置边框样式 */
 #qr-reader div[style*="border: 1px solid"] {
+    /* 这是扫描框的 div, 它必须在 video (z-index: 1) 之上 */
     border: 4px dashed #4CAF50 !important;
     box-shadow: 0 0 20px rgba(76, 175, 80, 0.5);
-    /* 确保扫描框在 video 之上 */
     z-index: 10;
 }
 
@@ -130,7 +142,7 @@ select {
     -webkit-appearance: none;
     -moz-appearance: none;
     appearance: none;
-    background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23FFFFFF%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E');
+    background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23FFFFFF%22%20d%3D%22M287%2069.4a17.6% 17.6 0% 200% 200-13-5.4H18.4c-5% 200-9.3% 201.8-12.9% 205.4A17.6% 17.6 0% 200% 200% 200% 2082.2c0% 205% 201.8% 209.3% 205.4% 2012.9l128% 20127.9c3.6% 203.6% 207.8% 205.4% 2012.8% 205.4s9.2-1.8% 2012.8-5.4L287% 2095c3.5-3.5% 205.4-7.8% 205.4-12.8% 200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E');
     background-repeat: no-repeat;
     background-position: right 12px center;
     background-size: 12px;
