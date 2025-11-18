@@ -66,17 +66,20 @@ hr {
     height: 100%;
 }
 
-/* 优化点 1: 强制内部 video 填充满容器 */
+*/
+#qr-reader > div,
 #qr-reader video {
     width: 100% !important;
     height: 100% !important;
-    object-fit: cover !important; /* 关键：这解决了手机上画面被拉伸或显示不全的问题 */
+    object-fit: cover !important; /* 关键：裁剪以适应，而不是留黑边 */
 }
 
 /* 库的内置边框样式 */
 #qr-reader div[style*="border: 1px solid"] {
     border: 4px dashed #4CAF50 !important;
     box-shadow: 0 0 20px rgba(76, 175, 80, 0.5);
+    /* 修复：确保扫描框(dashed)不会被 video 覆盖 */
+    z-index: 10;
 }
 
 /* --- 控制区 --- */

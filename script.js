@@ -209,7 +209,13 @@ document.addEventListener('DOMContentLoaded', () => {
             selectedCameraId, 
             {
                 fps: 10, // 扫描帧率
-                qrbox: { width: 250, height: 250 } // 扫描框大小
+                qrbox: { width: 250, height: 250 }, // 扫描框大小
+                
+                // --- 🚀 UI 修复: 核心 ---
+                // 告诉扫描器，我们希望视频流是 4:3 比例，以匹配 CSS 容器
+                // 这将消除手机上的黑边 (letterboxing)
+                aspectRatio: 4 / 3 
+                // -------------------------
             },
             onScanSuccess,
             onScanFailure
@@ -223,6 +229,7 @@ document.addEventListener('DOMContentLoaded', () => {
             alert("无法启动摄像头，请检查权限。");
         });
     }
+	
 
     /**
      * 停止扫描
