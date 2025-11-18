@@ -32,7 +32,7 @@ h2 {
     font-size: 1.4rem;
     margin-top: 25px;
 }
-/* 优化点 4: 计数 span 样式 */
+/* 计数 span 样式 */
 h2 #history-count {
     font-size: 1rem;
     color: #7f8c8d;
@@ -47,13 +47,13 @@ hr {
     margin: 30px 0;
 }
 
-/* --- 扫描区 --- */
+/* --- 扫描区 (V3 修复) --- */
 #scanner-container {
     width: 100%;
     overflow: hidden;
     position: relative;
-    /* 保持 4:3 比例 */
-    padding-top: 75%; 
+    /* 强制 1:1 方形比例 */
+    padding-top: 100%; 
     background: #2c3e50;
     border-radius: 8px;
 }
@@ -66,21 +66,22 @@ hr {
     height: 100%;
 }
 
-*/
-#qr-reader > div,
+/* 强制内部 video 填充满容器, 消除黑边 */
 #qr-reader video {
     width: 100% !important;
     height: 100% !important;
     object-fit: cover !important; /* 关键：裁剪以适应，而不是留黑边 */
+    z-index: 1; /* 确保 video 在扫描框(z-index: 10) 之后 */
 }
 
 /* 库的内置边框样式 */
 #qr-reader div[style*="border: 1px solid"] {
     border: 4px dashed #4CAF50 !important;
     box-shadow: 0 0 20px rgba(76, 175, 80, 0.5);
-    /* 修复：确保扫描框(dashed)不会被 video 覆盖 */
+    /* 确保扫描框在 video 之上 */
     z-index: 10;
 }
+
 
 /* --- 控制区 --- */
 .controls, .history-controls {

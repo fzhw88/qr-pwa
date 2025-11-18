@@ -6,7 +6,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const historyList = document.getElementById('history-list');
     const exportBtn = document.getElementById('export-btn');
     const clearBtn = document.getElementById('clear-btn');
-    // 优化点 4: 获取计数元素
     const historyCountEl = document.getElementById('history-count');
 
     // --- 状态和常量 ---
@@ -25,7 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     /**
-     * 优化点 3: 播放扫描成功提示音 (延长并增加渐出)
+     * V3 优化: 播放 "滴" 音 (高频, 三角波)
      */
     function playBeep() {
         if (!audioContext) return;
@@ -35,16 +34,19 @@ document.addEventListener('DOMContentLoaded', () => {
         oscillator.connect(gainNode);
         gainNode.connect(audioContext.destination);
 
-        oscillator.type = 'sine';
-        oscillator.frequency.setValueAtTime(600, audioContext.currentTime);
+        // 使用 'triangle' (三角波) 更像电子提示音
+        oscillator.type = 'triangle'; 
+        // 提高频率到 1200Hz, 产生 "滴" 声
+        oscillator.frequency.setValueAtTime(1200, audioContext.currentTime); 
         
-        // 声音从 0.3 音量开始
-        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-        // 在 0.3 秒内线性减弱到 0，避免爆音
-        gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.3);
+        const now = audioContext.currentTime;
+        gainNode.gain.setValueAtTime(0.3, now); // 开始音量
+        
+        // 快速衰减，声音更短促
+        gainNode.gain.linearRampToValueAtTime(0.01, now + 0.1); 
 
-        oscillator.start(audioContext.currentTime);
-        oscillator.stop(audioContext.currentTime + 0.3); // 持续 0.3 秒
+        oscillator.start(now);
+        oscillator.stop(now + 0.15); // 总持续 0.15 秒
     }
 
     /**
@@ -68,7 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     /**
-     * 优化点 4: 将历史记录加载到 UI (并更新计数)
+     * 将历史记录加载到 UI (并更新计数)
      */
     function loadHistory() {
         const history = getHistory();
@@ -117,7 +119,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     /**
-     * 优化点 2: 导出历史记录为 CSV 文件
+     * 导出历史记录为 CSV 文件
      */
     function exportHistory() {
         const history = getHistory();
@@ -126,34 +128,32 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // 辅助函数：转义CSV字段，防止内容中的逗号或引号导致格式错乱
+        // 辅助函数：转义CSV字段
         const escapeCSV = (str) => {
             let result = String(str);
-            // 如果字段包含逗号、换行符或双引号
             if (result.search(/("|,|\n)/g) >= 0) {
-                // 用双引号包裹，并将内部的双引号转义为两个双引号
                 result = '"' + result.replace(/"/g, '""') + '"';
             }
             return result;
         };
 
-        // CSV 头部 ( \uFEFF 是 BOM 头，确保 Excel 正确识别 UTF-8 )
+        // CSV 头部 ( \uFEFF 是 BOM 头)
         let csvRows = ["\uFEFFTimestamp,Content"];
 
         // 添加数据行
         history.forEach(item => {
-            const timestamp = new Date(item.timestamp).toLocaleString(); // 使用本地化时间
+            const timestamp = new Date(item.timestamp).toLocaleString();
             const content = escapeCSV(item.text);
             csvRows.push(`${timestamp},${content}`);
         });
 
-        const csvString = csvRows.join("\r\n"); // 使用 Windows 换行符
+        const csvString = csvRows.join("\r\n");
         const dataBlob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(dataBlob);
         
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'qr-history.csv'; // 文件名修改为 .csv
+        a.download = 'qr-history.csv';
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -211,11 +211,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 fps: 10, // 扫描帧率
                 qrbox: { width: 250, height: 250 }, // 扫描框大小
                 
-                // --- 🚀 UI 修复: 核心 ---
-                // 告诉扫描器，我们希望视频流是 4:3 比例，以匹配 CSS 容器
-                // 这将消除手机上的黑边 (letterboxing)
-                aspectRatio: 4 / 3 
-                // -------------------------
+                // V3 优化: 尝试请求 1:1 (方形) 视频流
+                aspectRatio: 1.0 
             },
             onScanSuccess,
             onScanFailure
@@ -229,7 +226,6 @@ document.addEventListener('DOMContentLoaded', () => {
             alert("无法启动摄像头，请检查权限。");
         });
     }
-	
 
     /**
      * 停止扫描
