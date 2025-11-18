@@ -1,0 +1,257 @@
+document.addEventListener('DOMContentLoaded', () => {
+    // --- DOM 元素 ---
+    const startStopBtn = document.getElementById('start-stop-btn');
+    const cameraSelect = document.getElementById('camera-select');
+    const sessionResultsList = document.getElementById('session-results-list');
+    const historyList = document.getElementById('history-list');
+    const exportBtn = document.getElementById('export-btn');
+    const clearBtn = document.getElementById('clear-btn');
+
+    // --- 状态和常量 ---
+    const HISTORY_KEY = 'qrScannerHistory';
+    let html5QrCode;
+    let isScanning = false;
+    let lastResult = null;
+    let lastResultTime = null;
+
+    // --- 音频上下文 (用于播放提示音) ---
+    let audioContext;
+    try {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    } catch (e) {
+        console.warn("Web Audio API is not supported in this browser.");
+    }
+
+    /**
+     * 播放扫描成功提示音
+     */
+    function playBeep() {
+        if (!audioContext) return;
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+
+        oscillator.type = 'sine'; // 正弦波
+        oscillator.frequency.setValueAtTime(600, audioContext.currentTime); // 频率 600Hz
+        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime); // 音量
+
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.1); // 持续 0.1 秒
+    }
+
+    /**
+     * 获取本地存储的历史记录
+     * @returns {Array} 历史记录数组
+     */
+    function getHistory() {
+        return JSON.parse(localStorage.getItem(HISTORY_KEY)) || [];
+    }
+
+    /**
+     * 保存一条记录到历史
+     * @param {string} text - 扫描到的文本
+     */
+    function saveToHistory(text) {
+        const history = getHistory();
+        const timestamp = new Date().toISOString();
+        history.unshift({ text, timestamp }); // 最新记录放在最前面
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+        loadHistory(); // 保存后重新加载历史列表
+    }
+
+    /**
+     * 将历史记录加载到 UI
+     */
+    function loadHistory() {
+        const history = getHistory();
+        historyList.innerHTML = ''; // 清空
+        if (history.length === 0) {
+            historyList.innerHTML = '<li>暂无历史记录</li>';
+            return;
+        }
+        history.forEach(item => {
+            addHistoryItemToUI(item.text, item.timestamp);
+        });
+    }
+
+    /**
+     * 添加单条历史记录到 UI
+     * @param {string} text - 扫描文本
+     * @param {string} timestamp - ISO 格式时间戳
+     */
+    function addHistoryItemToUI(text, timestamp) {
+        const li = document.createElement('li');
+        
+        const textNode = document.createElement('span');
+        textNode.textContent = text;
+        
+        const timeNode = document.createElement('span');
+        timeNode.className = 'timestamp';
+        timeNode.textContent = new Date(timestamp).toLocaleString();
+        
+        li.appendChild(textNode);
+        li.appendChild(timeNode);
+        historyList.appendChild(li);
+    }
+
+    /**
+     * 添加单条“本次扫描”结果到 UI
+     * @param {string} text - 扫描文本
+     */
+    function addSessionResultToUI(text) {
+        const li = document.createElement('li');
+        li.textContent = text;
+        sessionResultsList.prepend(li); // 插入到最前面
+    }
+
+    /**
+     * 导出历史记录为 JSON 文件
+     */
+    function exportHistory() {
+        const history = getHistory();
+        if (history.length === 0) {
+            alert('没有历史记录可以导出。');
+            return;
+        }
+        const dataStr = JSON.stringify(history, null, 2);
+        const dataBlob = new Blob([dataStr], { type: 'application/json' });
+        const url = URL.createObjectURL(dataBlob);
+        
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'qr-history.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    /**
+     * 清空所有历史记录
+     */
+    function clearHistory() {
+        if (confirm('确定要清空所有历史记录吗？此操作不可撤销。')) {
+            localStorage.removeItem(HISTORY_KEY);
+            loadHistory(); // 重新加载（显示为空）
+            alert('历史记录已清空。');
+        }
+    }
+
+    /**
+     * 扫描成功的回调
+     * @param {string} decodedText - 解码后的文本
+     * @param {object} decodedResult - 解码结果详情
+     */
+    const onScanSuccess = (decodedText, decodedResult) => {
+        const now = Date.now();
+        
+        // 防抖逻辑：2秒内相同的码只处理一次
+        if (decodedText === lastResult && (now - lastResultTime) < 2000) {
+            return;
+        }
+
+        lastResult = decodedText;
+        lastResultTime = now;
+
+        playBeep(); // 播放提示音
+        addSessionResultToUI(decodedText); // 添加到本次会话列表
+        saveToHistory(decodedText); // 保存到本地存储
+    };
+
+    /**
+     * 扫描失败的回调（通常不需要处理）
+     * @param {string} error - 错误信息
+     */
+    const onScanFailure = (error) => {
+        // console.warn(`QR 扫描错误: ${error}`);
+    };
+
+    /**
+     * 开始扫描
+     */
+    function startScanning() {
+        const selectedCameraId = cameraSelect.value;
+        html5QrCode.start(
+            selectedCameraId, 
+            {
+                fps: 10, // 扫描帧率
+                qrbox: { width: 250, height: 250 } // 扫描框大小
+            },
+            onScanSuccess,
+            onScanFailure
+        ).then(() => {
+            isScanning = true;
+            startStopBtn.textContent = '停止扫描';
+            startStopBtn.classList.add('scanning');
+            cameraSelect.disabled = true; // 扫描时禁止切换
+        }).catch(err => {
+            console.error("无法启动扫描器: ", err);
+            alert("无法启动摄像头，请检查权限。");
+        });
+    }
+
+    /**
+     * 停止扫描
+     */
+    function stopScanning() {
+        html5QrCode.stop().then(() => {
+            isScanning = false;
+            startStopBtn.textContent = '开始扫描';
+            startStopBtn.classList.remove('scanning');
+            cameraSelect.disabled = false; // 允许切换
+            lastResult = null; // 重置防抖
+            lastResultTime = null;
+        }).catch(err => {
+            console.error("停止扫描时出错: ", err);
+        });
+    }
+
+    /**
+     * 初始化扫描器和事件监听
+     */
+    function initialize() {
+        // 实例化扫描器
+        html5QrCode = new Html5Qrcode("qr-reader");
+
+        // 获取摄像头并填充下拉框
+        Html5Qrcode.getCameras().then(cameras => {
+            if (cameras && cameras.length) {
+                cameraSelect.innerHTML = ''; // 清空
+                cameras.forEach(camera => {
+                    const option = document.createElement('option');
+                    option.value = camera.id;
+                    // 尝试将后置摄像头设为默认
+                    option.textContent = camera.label || `摄像头 ${camera.id}`;
+                    if (camera.label.toLowerCase().includes('back') || camera.label.toLowerCase().includes('后置')) {
+                        option.selected = true;
+                    }
+                    cameraSelect.appendChild(option);
+                });
+                cameraSelect.style.display = 'block'; // 显示下拉框
+            }
+        }).catch(err => {
+            console.error("获取摄像头失败: ", err);
+            alert("获取摄像头列表失败。");
+        });
+
+        // 绑定事件
+        startStopBtn.addEventListener('click', () => {
+            if (isScanning) {
+                stopScanning();
+            } else {
+                startScanning();
+            }
+        });
+
+        exportBtn.addEventListener('click', exportHistory);
+        clearBtn.addEventListener('click', clearHistory);
+
+        // 页面加载时载入历史记录
+        loadHistory();
+    }
+
+    // --- 启动应用 ---
+    initialize();
+});
