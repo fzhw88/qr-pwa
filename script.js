@@ -6,6 +6,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const historyList = document.getElementById('history-list');
     const exportBtn = document.getElementById('export-btn');
     const clearBtn = document.getElementById('clear-btn');
+    // 优化点 4: 获取计数元素
+    const historyCountEl = document.getElementById('history-count');
 
     // --- 状态和常量 ---
     const HISTORY_KEY = 'qrScannerHistory';
@@ -23,7 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     /**
-     * 播放扫描成功提示音
+     * 优化点 3: 播放扫描成功提示音 (延长并增加渐出)
      */
     function playBeep() {
         if (!audioContext) return;
@@ -33,12 +35,16 @@ document.addEventListener('DOMContentLoaded', () => {
         oscillator.connect(gainNode);
         gainNode.connect(audioContext.destination);
 
-        oscillator.type = 'sine'; // 正弦波
-        oscillator.frequency.setValueAtTime(600, audioContext.currentTime); // 频率 600Hz
-        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime); // 音量
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(600, audioContext.currentTime);
+        
+        // 声音从 0.3 音量开始
+        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+        // 在 0.3 秒内线性减弱到 0，避免爆音
+        gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.3);
 
         oscillator.start(audioContext.currentTime);
-        oscillator.stop(audioContext.currentTime + 0.1); // 持续 0.1 秒
+        oscillator.stop(audioContext.currentTime + 0.3); // 持续 0.3 秒
     }
 
     /**
@@ -58,15 +64,19 @@ document.addEventListener('DOMContentLoaded', () => {
         const timestamp = new Date().toISOString();
         history.unshift({ text, timestamp }); // 最新记录放在最前面
         localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
-        loadHistory(); // 保存后重新加载历史列表
+        loadHistory(); // 保存后重新加载历史列表（会更新计数）
     }
 
     /**
-     * 将历史记录加载到 UI
+     * 优化点 4: 将历史记录加载到 UI (并更新计数)
      */
     function loadHistory() {
         const history = getHistory();
         historyList.innerHTML = ''; // 清空
+        
+        // 更新计数
+        historyCountEl.textContent = `(共 ${history.length} 条)`;
+
         if (history.length === 0) {
             historyList.innerHTML = '<li>暂无历史记录</li>';
             return;
@@ -107,7 +117,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     /**
-     * 导出历史记录为 JSON 文件
+     * 优化点 2: 导出历史记录为 CSV 文件
      */
     function exportHistory() {
         const history = getHistory();
@@ -115,13 +125,35 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('没有历史记录可以导出。');
             return;
         }
-        const dataStr = JSON.stringify(history, null, 2);
-        const dataBlob = new Blob([dataStr], { type: 'application/json' });
+
+        // 辅助函数：转义CSV字段，防止内容中的逗号或引号导致格式错乱
+        const escapeCSV = (str) => {
+            let result = String(str);
+            // 如果字段包含逗号、换行符或双引号
+            if (result.search(/("|,|\n)/g) >= 0) {
+                // 用双引号包裹，并将内部的双引号转义为两个双引号
+                result = '"' + result.replace(/"/g, '""') + '"';
+            }
+            return result;
+        };
+
+        // CSV 头部 ( \uFEFF 是 BOM 头，确保 Excel 正确识别 UTF-8 )
+        let csvRows = ["\uFEFFTimestamp,Content"];
+
+        // 添加数据行
+        history.forEach(item => {
+            const timestamp = new Date(item.timestamp).toLocaleString(); // 使用本地化时间
+            const content = escapeCSV(item.text);
+            csvRows.push(`${timestamp},${content}`);
+        });
+
+        const csvString = csvRows.join("\r\n"); // 使用 Windows 换行符
+        const dataBlob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(dataBlob);
         
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'qr-history.json';
+        a.download = 'qr-history.csv'; // 文件名修改为 .csv
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -134,7 +166,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function clearHistory() {
         if (confirm('确定要清空所有历史记录吗？此操作不可撤销。')) {
             localStorage.removeItem(HISTORY_KEY);
-            loadHistory(); // 重新加载（显示为空）
+            loadHistory(); // 重新加载（会显示为空并更新计数为 0）
             alert('历史记录已清空。');
         }
     }

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QR 扫描工具</title>
+    <title>QR 扫描工具 (V2)</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -29,9 +29,9 @@
         <hr>
 
         <div class="history-container">
-            <h2>扫描总历史</h2>
+            <h2>扫描总历史 <span id="history-count"></span></h2>
             <div class="history-controls">
-                <button id="export-btn">导出历史 (JSON)</button>
+                <button id="export-btn">导出历史 (CSV)</button>
                 <button id="clear-btn">清空历史</button>
             </div>
             <ul id="history-list">
