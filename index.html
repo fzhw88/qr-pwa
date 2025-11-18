@@ -12,12 +12,21 @@
     button:hover{background:#0056b3}
     ul{max-height:40vh;overflow:auto;text-align:left;padding-left:1.5rem}
     li{word-break:break-all;margin:.25rem 0}
+    /* ===== 右上角喇叭按钮 ===== */
+    #soundToggle{
+      position:fixed;top:.5rem;right:.5rem;width:44px;height:44px;
+      font-size:26px;border:none;background:transparent;cursor:pointer;
+      color:#666;transition:color .2s;
+    }
+    #soundToggle.allow{color:#007bff}
   </style>
 </head>
 <body>
+  <!-- 右上角喇叭 -->
+  <button id="soundToggle" title="允许/禁止提示音">🔊</button>
+
   <h2>QR 扫描器</h2>
   <div id="reader"></div>
-  <button id="btnAllow">允许提示音</button>
   <button onclick="exportCSV()">导出 CSV</button>
   <button onclick="clearHis()">清空记录</button>
   <ul id="list"></ul>
@@ -28,49 +37,8 @@
     const get=()=>JSON.parse(localStorage.getItem('qr')||'[]');
     const set=d=>localStorage.setItem('qr',JSON.stringify(d));
 
-    /* ---------- 去重表：{二维码内容: 上次时间戳} ---------- */
+    /* ---------- 去重表 ---------- */
     const dupMap=new Map();
 
-    /* ---------- 提示音 ---------- */
-    const beep=new Audio('data:audio/wav;base64,UklGRlJDAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YYZDAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIA');
-
-    /* 用户首次点击后，浏览器才允许播放声音 */
-    document.getElementById('btnAllow').addEventListener('click',()=>beep.play().catch(()=>{}));
-
-    /* ---------- 渲染 ---------- */
-    function render(){
-      document.getElementById('list').innerHTML=
-        get().map(e=>`<li>${e.t} - ${e.c}</li>`).join('');
-    }
-
-    /* ---------- 导出 ---------- */
-    function exportCSV(){
-      const rows=get().map(e=>`"${e.t}","${e.c.replace(/"/g,'""')}"`);
-      const blob=new Blob([rows.join('\n')],{type:'text/csv;charset=utf-8'});
-      const a=document.createElement('a');
-      a.href=URL.createObjectURL(blob);
-      a.download='scan_history.csv';
-      a.click();
-    }
-
-    /* ---------- 清空 ---------- */
-    function clearHis(){if(confirm('清空所有记录？')){set([]);render();}}
-
-    /* ---------- 扫码回调 ---------- */
-    function onScan(txt){
-      const now=Date.now();
-      if(dupMap.get(txt) && now-dupMap.get(txt)<3000) return; // 3 秒内重复无视
-      dupMap.set(txt,now);
-      beep.play().catch(()=>{});          // 能响就响，不响继续
-      const d=get(); d.unshift({t:new Date().toLocaleString(),c:txt}); set(d); render();
-    }
-
-    /* ---------- 启动 ---------- */
-    window.addEventListener('DOMContentLoaded',()=>{
-      render();
-      const qr=new Html5Qrcode('reader');
-      qr.start({facingMode:'environment'},{fps:10},onScan,console.error);
-    });
-  </script>
-</body>
-</html>
+    /* ---------- 长"滴"提示音(≈0.2s) ---------- */
+    const beep=new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YUQGAACBhYqFbF1fdJivrNepw4qMg2tVUWxEi9N5wLKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsr
