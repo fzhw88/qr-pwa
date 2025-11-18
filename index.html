@@ -1,34 +1,32 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="utf-8" />
+  <meta charset="utf-8"/>
   <title>QR 扫描器</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <link rel="manifest" href="manifest.json" />
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <link rel="manifest" href="manifest.json"/>
   <style>
     body{font-family:system-ui,Roboto,Helvetica,Arial,sans-serif;background:#fff;color:#222;text-align:center;margin:0;padding:1rem}
     h2{margin:.5rem 0}
     /* 右上角喇叭 */
-    #soundToggle{position:fixed;top:.5rem;right:.5rem;width:44px;height:44px;font-size:26px;border:none;background:transparent;cursor:pointer;transition:color .2s;color:#666}
+    #soundToggle{position:fixed;top:.5rem;right:.5rem;width:44px;height:44px;font-size:26px;border:none;background:transparent;cursor:pointer;color:#666;transition:color .2s}
     #soundToggle.allow{color:#007bff}
     #soundToggle.mute::after{content:'✕';position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:16px;color:#e00}
     /* 扫码区域 */
     #reader{max-width:400px;margin:1rem auto;border:2px solid #007bff;border-radius:6px;display:none}
     button{margin:.5rem;padding:.6rem 1.2rem;font-size:1rem;background:#007bff;color:#fff;border:none;border-radius:4px;cursor:pointer}
-    button:hover{background:#0056b3}
     button.stop{background:#dc3545}
     ul{max-height:40vh;overflow:auto;text-align:left;padding-left:1.5rem;margin-top:1rem}
     li{word-break:break-all;margin:.25rem 0}
   </style>
 </head>
 <body>
-  <!-- 喇叭 -->
-  <button id="soundToggle" class="allow" title="静音/开启"></button>
+  <!-- 喇叭图标 -->
+  <button id="soundToggle" class="allow" title="静音/开启">🔊</button>
 
   <h2>QR 扫描器</h2>
   <button id="btnScan">开始扫码</button>
   <button id="btnStop" class="stop" style="display:none">停止扫码</button>
-
   <div id="reader"></div>
 
   <button onclick="exportCSV()">导出 CSV</button>
@@ -41,7 +39,10 @@
     const get=()=>JSON.parse(localStorage.getItem('qr')||'[]');
     const set=d=>localStorage.setItem('qr',JSON.stringify(d));
 
-    /* ---------- 声音开关 ---------- */
+    /* ---------- 去重表 ---------- */
+    const dupMap=new Map();
+
+    /* ---------- 声音 ---------- */
     const SND_KEY='qr-sound';
     let soundOn=localStorage.getItem(SND_KEY)!=='0';
-    const beep=new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YUQGAACBhYqFbF1fdJivrNepw4qMg2tVUWxEi9N5wLKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKz
+    const beep=new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YUQGAACBhYqFbF1fdJivrNepw4qMg2tVUWxEi9N5wLKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsrKzsr
