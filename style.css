@@ -47,19 +47,19 @@ hr {
     margin: 30px 0;
 }
 
-/* --- 扫描区 (V5 修复) --- */
+/* --- 扫描区 (V6 修复) --- */
 #scanner-container {
     width: 100%;
     overflow: hidden;
     position: relative;
-    /* V5 优化点: 使用现代 CSS 'aspect-ratio' 属性来创建 1:1 方形 */
+    /* 保持 V5 的 1:1 方形容器 */
     aspect-ratio: 1 / 1; 
-    /* 'padding-top: 100%' 是一种 hack, 'aspect-ratio' 更标准 */
     background: #2c3e50;
     border-radius: 8px;
 }
 
 #qr-reader {
+    /* 这个容器必须 100% 填充 */
     position: absolute;
     top: 0;
     left: 0;
@@ -67,39 +67,31 @@ hr {
     height: 100%;
 }
 
-/* * 🚀 V5 UI 核心修复 🚀
- * 无论 html5-qrcode 库创建了多少层 div,
- * 强制它们和 video 元素都 100% 填满父容器。
- * 这将解决视频被压缩到底部并留出黑边的问题。
+/* * 🚀 V6 UI 核心修复 🚀
+ * V5 失败在于它也重置了库的父 div, 导致 "全黑"。
+ * V6 只针对 <video> 元素本身。
+ * 这将强制 16:9 的视频流 "放大并裁剪" 来填满 1:1 的容器。
 */
-#qr-reader div,
 #qr-reader video {
-    /* 强制重置位置和大小 */
-    position: absolute !important;
-    top: 0 !important;
-    left: 0 !important;
+    /* 强制视频元素 100% 填满其父容器 */
     width: 100% !important;
     height: 100% !important;
     
-    /* 强制视频 'cover' (放大并裁剪) */
+    /* 关键: "放大并裁剪" (Zoom/Crop), 消除黑边 */
     object-fit: cover !important; 
-    z-index: 1 !important; /* 确保 video 在扫描框(z-index: 10) 之后 */
+    
+    /* 确保视频在扫描框 (z-index: 10) 之下 */
+    z-index: 1 !important; 
 }
 
-/* * 库的内置边框样式 (扫描框)
- * 必须覆盖 V5 规则, 保证它在最上层
+/* * 扫描框 (虚线)
+ * 我们只调整它的外观和 z-index，不碰它的布局。
 */
 #qr-reader div[style*="border: 1px solid"] {
     /* 这是扫描框的 div, 它必须在 video (z-index: 1) 之上 */
     border: 4px dashed #4CAF50 !important;
     box-shadow: 0 0 20px rgba(76, 175, 80, 0.5) !important;
     z-index: 10 !important; /* 必须最高 */
-    
-    /* * 覆盖 V5 规则中的 'object-fit'
-     * 扫描框不需要 'object-fit'
-     * 'unset' 将其重置回默认值
-    */
-    object-fit: unset !important;
 }
 
 
