@@ -1,190 +1,43 @@
-/* --- 基础和布局 --- */
-body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    line-height: 1.6;
-    background-color: #f4f7f6;
-    color: #333;
-    margin: 0;
-    padding: 15px;
-}
+/* --- 保持之前的 V6 UI 修复代码 --- */
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; line-height: 1.6; background-color: #f4f7f6; color: #333; margin: 0; padding: 15px; }
+.container { max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 20px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); }
+h1, h2 { text-align: center; color: #2c3e50; border-bottom: 2px solid #ecf0f1; padding-bottom: 10px; }
+h1 { font-size: 1.8rem; }
+h2 { font-size: 1.4rem; margin-top: 25px; }
+h2 #history-count { font-size: 1rem; color: #7f8c8d; font-weight: 500; margin-left: 8px; }
+hr { border: none; border-top: 1px solid #eee; margin: 30px 0; }
 
-.container {
-    max-width: 600px;
-    margin: 0 auto;
-    background-color: #ffffff;
-    padding: 20px;
-    border-radius: 10px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-}
-
-h1, h2 {
-    text-align: center;
-    color: #2c3e50;
-    border-bottom: 2px solid #ecf0f1;
-    padding-bottom: 10px;
-}
-
-h1 {
-    font-size: 1.8rem;
-}
-
-h2 {
-    font-size: 1.4rem;
-    margin-top: 25px;
-}
-/* 计数 span 样式 */
-h2 #history-count {
-    font-size: 1rem;
-    color: #7f8c8d;
-    font-weight: 500;
-    margin-left: 8px;
-}
-
-
-hr {
-    border: none;
-    border-top: 1px solid #eee;
-    margin: 30px 0;
-}
-
-/* --- 扫描区 (V6 修复) --- */
-#scanner-container {
-    width: 100%;
-    overflow: hidden;
-    position: relative;
-    /* 保持 V5 的 1:1 方形容器 */
-    aspect-ratio: 1 / 1; 
-    background: #2c3e50;
-    border-radius: 8px;
-}
-
-#qr-reader {
-    /* 这个容器必须 100% 填充 */
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-}
-
-/* * 🚀 V6 UI 核心修复 🚀
- * V5 失败在于它也重置了库的父 div, 导致 "全黑"。
- * V6 只针对 <video> 元素本身。
- * 这将强制 16:9 的视频流 "放大并裁剪" 来填满 1:1 的容器。
-*/
-#qr-reader video {
-    /* 强制视频元素 100% 填满其父容器 */
-    width: 100% !important;
-    height: 100% !important;
-    
-    /* 关键: "放大并裁剪" (Zoom/Crop), 消除黑边 */
-    object-fit: cover !important; 
-    
-    /* 确保视频在扫描框 (z-index: 10) 之下 */
-    z-index: 1 !important; 
-}
-
-/* * 扫描框 (虚线)
- * 我们只调整它的外观和 z-index，不碰它的布局。
-*/
-#qr-reader div[style*="border: 1px solid"] {
-    /* 这是扫描框的 div, 它必须在 video (z-index: 1) 之上 */
-    border: 4px dashed #4CAF50 !important;
-    box-shadow: 0 0 20px rgba(76, 175, 80, 0.5) !important;
-    z-index: 10 !important; /* 必须最高 */
-}
-
+/* --- 扫描区 (V6) --- */
+#scanner-container { width: 100%; overflow: hidden; position: relative; aspect-ratio: 1 / 1; background: #2c3e50; border-radius: 8px; }
+#qr-reader { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+#qr-reader video { width: 100% !important; height: 100% !important; object-fit: cover !important; z-index: 1 !important; }
+#qr-reader div[style*="border: 1px solid"] { border: 4px dashed #4CAF50 !important; box-shadow: 0 0 20px rgba(76, 175, 80, 0.5) !important; z-index: 10 !important; }
 
 /* --- 控制区 --- */
-.controls, .history-controls {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 15px;
-    margin-top: 20px;
-}
+.controls, .history-controls { display: flex; justify-content: space-between; align-items: center; gap: 15px; margin-top: 20px; }
+button, select { flex: 1; padding: 12px 15px; font-size: 1rem; border: none; border-radius: 6px; cursor: pointer; transition: background-color 0.2s; background-color: #3498db; color: white; text-align: center; }
+button:hover, select:hover { background-color: #2980b9; }
+#start-stop-btn.scanning { background-color: #e74c3c; }
+#start-stop-btn.scanning:hover { background-color: #c0392b; }
+#clear-btn { background-color: #f39c12; }
+#clear-btn:hover { background-color: #e67e22; }
+select { background-color: #95a5a6; -webkit-appearance: none; appearance: none; background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23FFFFFF%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E'); background-repeat: no-repeat; background-position: right 12px center; background-size: 12px; }
+#session-results-list, #history-list { list-style-type: none; padding: 0; margin-top: 15px; max-height: 200px; overflow-y: auto; border: 1px solid #ecf0f1; border-radius: 6px; }
+#history-list { max-height: 300px; }
+#session-results-list li, #history-list li { background: #ecf0f1; padding: 12px 15px; margin: 8px; border-radius: 5px; word-wrap: break-word; font-size: 0.95rem; display: flex; flex-direction: column; animation: fadeIn 0.3s ease; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+#history-list li .timestamp { font-size: 0.8rem; color: #7f8c8d; margin-top: 5px; }
 
-button, select {
-    flex: 1;
-    padding: 12px 15px;
-    font-size: 1rem;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: background-color 0.2s, box-shadow 0.2s;
-    background-color: #3498db;
-    color: white;
-    text-align: center;
-}
-
-button:hover, select:hover {
-    background-color: #2980b9;
-}
-
-#start-stop-btn.scanning {
-    background-color: #e74c3c;
-}
-
-#start-stop-btn.scanning:hover {
-    background-color: #c0392b;
-}
-
-#clear-btn {
-    background-color: #f39c12;
-}
-#clear-btn:hover {
-    background-color: #e67e22;
-}
-
-select {
-    background-color: #95a5a6;
-    color: white;
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    appearance: none;
-    background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23FFFFFF%22%20d%3D%22M287%2069.4a17.6% 17.6 0% 200% 200-13-5.4H18.4c-5% 200-9.3% 201.8-12.9% 205.4A17.6% 17.6 0% 200% 200% 200% 2082.2c0% 205% 201.8% 209.3% 205.4% 2012.9l128% 20127.9c3.6% 203.6% 207.8% 205.4% 2012.8% 205.4s9.2-1.8% 2012.8-5.4L287% 2095c3.5-3.5% 205.4-7.8% 205.4-12.8% 200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E');
-    background-repeat: no-repeat;
-    background-position: right 12px center;
-    background-size: 12px;
-}
-
-/* --- 结果和历史列表 --- */
-#session-results-list, #history-list {
-    list-style-type: none;
-    padding: 0;
-    margin-top: 15px;
-    max-height: 200px;
-    overflow-y: auto;
-    border: 1px solid #ecf0f1;
-    border-radius: 6px;
-}
-
-#history-list {
-    max-height: 300px;
-}
-
-#session-results-list li, #history-list li {
-    background: #ecf0f1;
-    padding: 12px 15px;
-    margin: 8px;
-    border-radius: 5px;
-    word-wrap: break-word;
-    font-size: 0.95rem;
-    display: flex;
-    flex-direction: column;
-}
-
-#session-results-list li {
-    animation: fadeIn 0.3s ease;
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(-10px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-#history-list li .timestamp {
-    font-size: 0.8rem;
-    color: #7f8c8d;
-    margin-top: 5px;
-}
+/* --- 🚀 新增: 云同步样式 --- */
+.cloud-sync-container { margin: 20px 0; border: 1px solid #ddd; border-radius: 6px; background: #f9f9f9; }
+.cloud-sync-container summary { padding: 12px; cursor: pointer; font-weight: bold; color: #555; user-select: none; }
+.cloud-content { padding: 15px; border-top: 1px solid #eee; }
+.cloud-content .note { margin: 0 0 10px; font-size: 0.9rem; color: #666; }
+.cloud-content input { width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-family: monospace; }
+.cloud-actions { display: flex; gap: 10px; margin-bottom: 10px; }
+#cloud-upload-btn { background-color: #8e44ad; }
+#cloud-upload-btn:hover { background-color: #732d91; }
+#cloud-download-btn { background-color: #27ae60; }
+#cloud-download-btn:hover { background-color: #219150; }
+#cloud-status { font-size: 0.85rem; color: #666; margin: 5px 0 0; height: 1.2em; }
+.cloud-content small a { color: #3498db; text-decoration: none; }
