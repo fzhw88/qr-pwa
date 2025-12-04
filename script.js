@@ -7,286 +7,293 @@ document.addEventListener('DOMContentLoaded', () => {
     const exportBtn = document.getElementById('export-btn');
     const clearBtn = document.getElementById('clear-btn');
     const historyCountEl = document.getElementById('history-count');
+    
+    // 云同步元素
+    const githubTokenInput = document.getElementById('github-token');
+    const cloudUploadBtn = document.getElementById('cloud-upload-btn');
+    const cloudDownloadBtn = document.getElementById('cloud-download-btn');
+    const cloudStatus = document.getElementById('cloud-status');
 
     // --- 状态和常量 ---
     const HISTORY_KEY = 'qrScannerHistory';
+    const TOKEN_KEY = 'qrScannerGithubToken';
+    const GIST_FILENAME = 'qr-scanner-backup.json'; // Gist 中的文件名
+    const GIST_DESC = 'QR Scanner History Backup (Auto-generated)';
+    
     let html5QrCode;
     let isScanning = false;
     let lastResult = null;
     let lastResultTime = null;
 
-    // --- 音频上下文 (用于播放提示音) ---
+    // --- 音频上下文 ---
     let audioContext;
-    try {
-        audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    } catch (e) {
-        console.warn("Web Audio API is not supported in this browser.");
-    }
+    try { audioContext = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {}
 
-    /**
-     * V3 优化: 播放 "滴" 音 (高频, 三角波)
-     */
     function playBeep() {
         if (!audioContext) return;
         const oscillator = audioContext.createOscillator();
         const gainNode = audioContext.createGain();
-
         oscillator.connect(gainNode);
         gainNode.connect(audioContext.destination);
-
-        // 使用 'triangle' (三角波) 更像电子提示音
-        oscillator.type = 'triangle'; 
-        // 提高频率到 1200Hz, 产生 "滴" 声
-        oscillator.frequency.setValueAtTime(1200, audioContext.currentTime); 
-        
+        oscillator.type = 'triangle';
+        oscillator.frequency.setValueAtTime(1200, audioContext.currentTime);
         const now = audioContext.currentTime;
-        gainNode.gain.setValueAtTime(0.3, now); // 开始音量
-        
-        // 快速衰减，声音更短促
-        gainNode.gain.linearRampToValueAtTime(0.01, now + 0.1); 
-
+        gainNode.gain.setValueAtTime(0.3, now);
+        gainNode.gain.linearRampToValueAtTime(0.01, now + 0.1);
         oscillator.start(now);
-        oscillator.stop(now + 0.15); // 总持续 0.15 秒
+        oscillator.stop(now + 0.15);
     }
 
-    /**
-     * 获取本地存储的历史记录
-     * @returns {Array} 历史记录数组
-     */
+    // --- 基础历史记录功能 ---
     function getHistory() {
         return JSON.parse(localStorage.getItem(HISTORY_KEY)) || [];
     }
 
-    /**
-     * 保存一条记录到历史
-     * @param {string} text - 扫描到的文本
-     */
+    function saveHistoryToLocal(history) {
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+        loadHistory();
+    }
+
     function saveToHistory(text) {
         const history = getHistory();
         const timestamp = new Date().toISOString();
-        history.unshift({ text, timestamp }); // 最新记录放在最前面
-        localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
-        loadHistory(); // 保存后重新加载历史列表（会更新计数）
+        history.unshift({ text, timestamp });
+        saveHistoryToLocal(history);
     }
 
-    /**
-     * 将历史记录加载到 UI (并更新计数)
-     */
     function loadHistory() {
         const history = getHistory();
-        historyList.innerHTML = ''; // 清空
-        
-        // 更新计数
+        historyList.innerHTML = '';
         historyCountEl.textContent = `(共 ${history.length} 条)`;
-
         if (history.length === 0) {
             historyList.innerHTML = '<li>暂无历史记录</li>';
             return;
         }
         history.forEach(item => {
-            addHistoryItemToUI(item.text, item.timestamp);
+            const li = document.createElement('li');
+            const textNode = document.createElement('span');
+            textNode.textContent = item.text;
+            const timeNode = document.createElement('span');
+            timeNode.className = 'timestamp';
+            timeNode.textContent = new Date(item.timestamp).toLocaleString();
+            li.appendChild(textNode);
+            li.appendChild(timeNode);
+            historyList.appendChild(li);
         });
     }
 
-    /**
-     * 添加单条历史记录到 UI
-     * @param {string} text - 扫描文本
-     * @param {string} timestamp - ISO 格式时间戳
-     */
-    function addHistoryItemToUI(text, timestamp) {
-        const li = document.createElement('li');
-        
-        const textNode = document.createElement('span');
-        textNode.textContent = text;
-        
-        const timeNode = document.createElement('span');
-        timeNode.className = 'timestamp';
-        timeNode.textContent = new Date(timestamp).toLocaleString();
-        
-        li.appendChild(textNode);
-        li.appendChild(timeNode);
-        historyList.appendChild(li);
-    }
-
-    /**
-     * 添加单条“本次扫描”结果到 UI
-     * @param {string} text - 扫描文本
-     */
     function addSessionResultToUI(text) {
         const li = document.createElement('li');
         li.textContent = text;
-        sessionResultsList.prepend(li); // 插入到最前面
+        sessionResultsList.prepend(li);
     }
 
-    /**
-     * 导出历史记录为 CSV 文件
-     */
     function exportHistory() {
         const history = getHistory();
-        if (history.length === 0) {
-            alert('没有历史记录可以导出。');
-            return;
-        }
-
-        // 辅助函数：转义CSV字段
+        if (history.length === 0) return alert('无记录可导出');
         const escapeCSV = (str) => {
             let result = String(str);
-            if (result.search(/("|,|\n)/g) >= 0) {
-                result = '"' + result.replace(/"/g, '""') + '"';
-            }
+            if (result.search(/("|,|\n)/g) >= 0) result = '"' + result.replace(/"/g, '""') + '"';
             return result;
         };
-
-        // CSV 头部 ( \uFEFF 是 BOM 头)
         let csvRows = ["\uFEFFTimestamp,Content"];
-
-        // 添加数据行
-        history.forEach(item => {
-            const timestamp = new Date(item.timestamp).toLocaleString();
-            const content = escapeCSV(item.text);
-            csvRows.push(`${timestamp},${content}`);
-        });
-
-        const csvString = csvRows.join("\r\n");
-        const dataBlob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(dataBlob);
-        
+        history.forEach(item => csvRows.push(`${new Date(item.timestamp).toLocaleString()},${escapeCSV(item.text)}`));
+        const url = URL.createObjectURL(new Blob([csvRows.join("\r\n")], { type: 'text/csv;charset=utf-8;' }));
         const a = document.createElement('a');
         a.href = url;
         a.download = 'qr-history.csv';
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
-        URL.revokeObjectURL(url);
     }
 
-    /**
-     * 清空所有历史记录
-     */
     function clearHistory() {
-        if (confirm('确定要清空所有历史记录吗？此操作不可撤销。')) {
+        if (confirm('确定清空？')) {
             localStorage.removeItem(HISTORY_KEY);
-            loadHistory(); // 重新加载（会显示为空并更新计数为 0）
-            alert('历史记录已清空。');
+            loadHistory();
         }
     }
 
-    /**
-     * 扫描成功的回调
-     * @param {string} decodedText - 解码后的文本
-     * @param {object} decodedResult - 解码结果详情
-     */
+    // --- 🚀 云同步功能实现 (GitHub Gist) ---
+
+    // 1. 加载保存的 Token
+    githubTokenInput.value = localStorage.getItem(TOKEN_KEY) || '';
+    githubTokenInput.addEventListener('change', () => {
+        localStorage.setItem(TOKEN_KEY, githubTokenInput.value.trim());
+    });
+
+    function updateStatus(msg, isError = false) {
+        cloudStatus.textContent = msg;
+        cloudStatus.style.color = isError ? 'red' : 'green';
+        setTimeout(() => cloudStatus.textContent = '', 5000);
+    }
+
+    async function findMyGist(token) {
+        // 获取用户的所有 Gist，寻找描述匹配的
+        const response = await fetch('https://api.github.com/gists', {
+            headers: { 'Authorization': `token ${token}` }
+        });
+        if (!response.ok) throw new Error('Token 无效或网络错误');
+        const gists = await response.json();
+        return gists.find(g => g.description === GIST_DESC);
+    }
+
+    async function createGist(token, content) {
+        const response = await fetch('https://api.github.com/gists', {
+            method: 'POST',
+            headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                description: GIST_DESC,
+                public: false, // 私有 Gist
+                files: { [GIST_FILENAME]: { content: content } }
+            })
+        });
+        if (!response.ok) throw new Error('创建 Gist 失败');
+    }
+
+    async function updateGist(token, gistId, content) {
+        const response = await fetch(`https://api.github.com/gists/${gistId}`, {
+            method: 'PATCH',
+            headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                files: { [GIST_FILENAME]: { content: content } }
+            })
+        });
+        if (!response.ok) throw new Error('更新 Gist 失败');
+    }
+
+    // 上传逻辑 (覆盖云端)
+    cloudUploadBtn.addEventListener('click', async () => {
+        const token = githubTokenInput.value.trim();
+        if (!token) return alert('请输入 GitHub Token');
+        
+        const history = getHistory();
+        if (history.length === 0) return alert('本地没有记录可上传');
+
+        cloudUploadBtn.disabled = true;
+        cloudStatus.textContent = '正在连接 GitHub...';
+
+        try {
+            const content = JSON.stringify(history, null, 2);
+            const existingGist = await findMyGist(token);
+            
+            if (existingGist) {
+                await updateGist(token, existingGist.id, content);
+                updateStatus('✅ 上传成功！云端记录已更新。');
+            } else {
+                await createGist(token, content);
+                updateStatus('✅ 创建并上传成功！(Private Gist)');
+            }
+        } catch (err) {
+            updateStatus(`❌ 失败: ${err.message}`, true);
+        } finally {
+            cloudUploadBtn.disabled = false;
+        }
+    });
+
+    // 下载逻辑 (合并到本地)
+    cloudDownloadBtn.addEventListener('click', async () => {
+        const token = githubTokenInput.value.trim();
+        if (!token) return alert('请输入 GitHub Token');
+
+        cloudDownloadBtn.disabled = true;
+        cloudStatus.textContent = '正在查找云端备份...';
+
+        try {
+            const existingGist = await findMyGist(token);
+            if (!existingGist) throw new Error('未找到云端备份文件');
+
+            const file = existingGist.files[GIST_FILENAME];
+            if (!file || !file.raw_url) throw new Error('备份文件损坏');
+
+            // 获取原始内容
+            const rawResponse = await fetch(file.raw_url);
+            const cloudHistory = await rawResponse.json();
+
+            // 🚀 智能合并逻辑：去重
+            const localHistory = getHistory();
+            // 使用 Map 以 "时间戳+内容" 为 key 进行去重
+            const historyMap = new Map();
+            
+            // 先放入本地
+            localHistory.forEach(item => historyMap.set(item.timestamp + item.text, item));
+            // 再放入云端 (如果 key 相同，这里逻辑是不覆盖还是覆盖？既然是 key 相同，内容也相同，无所谓)
+            // 但为了防止时间戳微小差异，我们也可以只用 text 去重？
+            // 不，严格去重比较安全。
+            cloudHistory.forEach(item => historyMap.set(item.timestamp + item.text, item));
+
+            // 转回数组并按时间倒序排序
+            const mergedHistory = Array.from(historyMap.values()).sort((a, b) => 
+                new Date(b.timestamp) - new Date(a.timestamp)
+            );
+
+            saveHistoryToLocal(mergedHistory);
+            updateStatus(`✅ 同步成功！合并后共 ${mergedHistory.length} 条。`);
+
+        } catch (err) {
+            updateStatus(`❌ 失败: ${err.message}`, true);
+        } finally {
+            cloudDownloadBtn.disabled = false;
+        }
+    });
+
+
+    // --- 扫描逻辑 ---
     const onScanSuccess = (decodedText, decodedResult) => {
         const now = Date.now();
-        
-        // 防抖逻辑：2秒内相同的码只处理一次
-        if (decodedText === lastResult && (now - lastResultTime) < 2000) {
-            return;
-        }
-
+        if (decodedText === lastResult && (now - lastResultTime) < 2000) return;
         lastResult = decodedText;
         lastResultTime = now;
-
-        playBeep(); // 播放提示音
-        addSessionResultToUI(decodedText); // 添加到本次会话列表
-        saveToHistory(decodedText); // 保存到本地存储
+        playBeep();
+        addSessionResultToUI(decodedText);
+        saveToHistory(decodedText);
     };
 
-    /**
-     * 扫描失败的回调（通常不需要处理）
-     * @param {string} error - 错误信息
-     */
-    const onScanFailure = (error) => {
-        // console.warn(`QR 扫描错误: ${error}`);
-    };
-
-    /**
-     * 开始扫描
-     */
     function startScanning() {
         const selectedCameraId = cameraSelect.value;
         html5QrCode.start(
             selectedCameraId, 
-            {
-                fps: 10, // 扫描帧率
-                qrbox: { width: 250, height: 250 }, // 扫描框大小
-                
-                // V3 优化: 尝试请求 1:1 (方形) 视频流
-                aspectRatio: 1.0 
-            },
+            { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 },
             onScanSuccess,
-            onScanFailure
+            () => {}
         ).then(() => {
             isScanning = true;
             startStopBtn.textContent = '停止扫描';
             startStopBtn.classList.add('scanning');
-            cameraSelect.disabled = true; // 扫描时禁止切换
-        }).catch(err => {
-            console.error("无法启动扫描器: ", err);
-            alert("无法启动摄像头，请检查权限。");
-        });
+            cameraSelect.disabled = true;
+        }).catch(err => alert("无法启动摄像头，请检查权限。"));
     }
 
-    /**
-     * 停止扫描
-     */
     function stopScanning() {
         html5QrCode.stop().then(() => {
             isScanning = false;
             startStopBtn.textContent = '开始扫描';
             startStopBtn.classList.remove('scanning');
-            cameraSelect.disabled = false; // 允许切换
-            lastResult = null; // 重置防抖
-            lastResultTime = null;
-        }).catch(err => {
-            console.error("停止扫描时出错: ", err);
-        });
+            cameraSelect.disabled = false;
+            lastResult = null;
+        }).catch(console.error);
     }
 
-    /**
-     * 初始化扫描器和事件监听
-     */
     function initialize() {
-        // 实例化扫描器
         html5QrCode = new Html5Qrcode("qr-reader");
-
-        // 获取摄像头并填充下拉框
         Html5Qrcode.getCameras().then(cameras => {
             if (cameras && cameras.length) {
-                cameraSelect.innerHTML = ''; // 清空
+                cameraSelect.innerHTML = '';
                 cameras.forEach(camera => {
                     const option = document.createElement('option');
                     option.value = camera.id;
-                    // 尝试将后置摄像头设为默认
                     option.textContent = camera.label || `摄像头 ${camera.id}`;
-                    if (camera.label.toLowerCase().includes('back') || camera.label.toLowerCase().includes('后置')) {
-                        option.selected = true;
-                    }
+                    if (camera.label.toLowerCase().includes('back') || camera.label.toLowerCase().includes('后置')) option.selected = true;
                     cameraSelect.appendChild(option);
                 });
-                cameraSelect.style.display = 'block'; // 显示下拉框
-            }
-        }).catch(err => {
-            console.error("获取摄像头失败: ", err);
-            alert("获取摄像头列表失败。");
-        });
-
-        // 绑定事件
-        startStopBtn.addEventListener('click', () => {
-            if (isScanning) {
-                stopScanning();
-            } else {
-                startScanning();
+                cameraSelect.style.display = 'block';
             }
         });
-
+        startStopBtn.addEventListener('click', () => isScanning ? stopScanning() : startScanning());
         exportBtn.addEventListener('click', exportHistory);
         clearBtn.addEventListener('click', clearHistory);
-
-        // 页面加载时载入历史记录
         loadHistory();
     }
 
-    // --- 启动应用 ---
     initialize();
 });
