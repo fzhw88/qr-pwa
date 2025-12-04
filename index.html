@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QR 扫描工具 (V2)</title>
+    <title>QR 扫描工具 (Pro)</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -21,21 +21,33 @@
         </div>
 
         <div class="results-container">
-            <h2>本次扫描结果 (连续)</h2>
-            <ul id="session-results-list">
-                </ul>
+            <h2>本次扫描结果</h2>
+            <ul id="session-results-list"></ul>
         </div>
         
         <hr>
 
+        <details class="cloud-sync-container">
+            <summary>☁️ 多端云同步 (GitHub Gist)</summary>
+            <div class="cloud-content">
+                <p class="note">使用 GitHub Token 将历史记录同步到您的私有 Gist。</p>
+                <input type="password" id="github-token" placeholder="在此粘贴 GitHub Token (PAT)" />
+                <div class="cloud-actions">
+                    <button id="cloud-upload-btn">⬆️ 上传/覆盖云端</button>
+                    <button id="cloud-download-btn">⬇️ 下载并合并</button>
+                </div>
+                <p id="cloud-status"></p>
+                <small><a href="https://github.com/settings/tokens" target="_blank">点击这里申请 Token</a> (需要勾选 'gist' 权限)</small>
+            </div>
+        </details>
+
         <div class="history-container">
             <h2>扫描总历史 <span id="history-count"></span></h2>
             <div class="history-controls">
-                <button id="export-btn">导出历史 (CSV)</button>
+                <button id="export-btn">导出 CSV</button>
                 <button id="clear-btn">清空历史</button>
             </div>
-            <ul id="history-list">
-                </ul>
+            <ul id="history-list"></ul>
         </div>
     </div>
 
