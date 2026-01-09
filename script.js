@@ -31,17 +31,49 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function playBeep() {
         if (!audioContext) return;
-        const oscillator = audioContext.createOscillator();
-        const gainNode = audioContext.createGain();
-        oscillator.connect(gainNode);
-        gainNode.connect(audioContext.destination);
-        oscillator.type = 'triangle';
-        oscillator.frequency.setValueAtTime(1200, audioContext.currentTime);
+
+        // 兼容性处理：确保音频上下文在交互后处于激活状态
+        if (audioContext.state === 'suspended') {
+            audioContext.resume();
+        }
+
         const now = audioContext.currentTime;
-        gainNode.gain.setValueAtTime(0.3, now);
-        gainNode.gain.linearRampToValueAtTime(0.01, now + 0.1);
-        oscillator.start(now);
-        oscillator.stop(now + 0.15);
+
+        // --- “叮” (高音部分 - High Pitch) ---
+        const osc1 = audioContext.createOscillator();
+        const gain1 = audioContext.createGain();
+        
+        osc1.type = 'sine'; 
+        osc1.frequency.setValueAtTime(1046.5, now); // C6 
+        
+        gain1.gain.setValueAtTime(0, now);
+        gain1.gain.linearRampToValueAtTime(0.5, now + 0.01); // 快速起音，音量加大
+        gain1.gain.exponentialRampToValueAtTime(0.01, now + 0.4); // 较长的自然消失
+        
+        osc1.connect(gain1);
+        gain1.connect(audioContext.destination);
+        
+        osc1.start(now);
+        osc1.stop(now + 0.5);
+
+        // --- “咚” (低音部分 - Low Pitch) ---
+        // 在“叮”开始 0.12 秒后触发，形成连贯的“叮咚”感
+        const startTime2 = now + 0.12;
+        const osc2 = audioContext.createOscillator();
+        const gain2 = audioContext.createGain();
+        
+        osc2.type = 'sine';
+        osc2.frequency.setValueAtTime(783.99, startTime2); // G5
+        
+        gain2.gain.setValueAtTime(0, startTime2);
+        gain2.gain.linearRampToValueAtTime(0.4, startTime2 + 0.01);
+        gain2.gain.exponentialRampToValueAtTime(0.01, startTime2 + 0.7); // 咚声余音更长，更有辨识度
+        
+        osc2.connect(gain2);
+        gain2.connect(audioContext.destination);
+        
+        osc2.start(startTime2);
+        osc2.stop(startTime2 + 0.8);
     }
 
     // --- 基础历史记录功能 ---
@@ -297,3 +329,4 @@ document.addEventListener('DOMContentLoaded', () => {
 
     initialize();
 });
+
